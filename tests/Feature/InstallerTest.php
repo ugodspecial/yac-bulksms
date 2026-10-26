@@ -25,6 +25,8 @@ class InstallerTest extends TestCase
 
     private string $markerPath;
 
+    private string $originalEnv;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,13 +37,15 @@ class InstallerTest extends TestCase
 
         mkdir($this->tempDir, 0777, true);
 
-        file_put_contents($this->envPath, implode("\n", [
+        $this->originalEnv = implode("\n", [
             '# Existing environment file',
             'APP_NAME=Old name',
             'DB_CONNECTION=sqlite',
             'DB_DATABASE=keep-me',
             '',
-        ]));
+        ]);
+
+        file_put_contents($this->envPath, $this->originalEnv);
 
         config([
             'yac.installer.enabled' => true,
@@ -125,10 +129,7 @@ class InstallerTest extends TestCase
             'db_username' => 'root',
         ])->assertSessionHasErrors('db_database');
 
-        $this->assertSame(
-            "APP_NAME=Old name\nDB_CONNECTION=sqlite\nDB_DATABASE=keep-me\n",
-            (string) file_get_contents($this->envPath),
-        );
+        $this->assertSame($this->originalEnv, (string) file_get_contents($this->envPath));
     }
 
     public function test_an_unreachable_mysql_server_shows_a_helpful_error(): void

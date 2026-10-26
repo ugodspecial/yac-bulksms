@@ -21,9 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Every browser request is sent to the installer until it has run.
-        $middleware->web(append: [
-            EnsureApplicationIsInstalled::class,
-        ]);
+        // This is a global middleware on purpose: route middleware such as
+        // "auth" is ordered by middleware priority and would redirect guests
+        // to the login page before the installer could answer.
+        $middleware->append(EnsureApplicationIsInstalled::class);
 
         // The Termii delivery-report webhook is called by the provider, so it
         // carries no session. Signature verification happens in the controller.

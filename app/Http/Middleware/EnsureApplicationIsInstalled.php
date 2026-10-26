@@ -27,7 +27,7 @@ class EnsureApplicationIsInstalled
             return $next($request);
         }
 
-        if (! $this->installation->isEnabled() || $this->isInstallerRequest($request)) {
+        if (! $this->installation->isEnabled() || $this->isInstallerRequest($request) || $request->is('up')) {
             return $next($request);
         }
 
