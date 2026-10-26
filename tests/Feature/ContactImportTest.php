@@ -94,8 +94,9 @@ class ContactImportTest extends TestCase
         $this->assertSame(1, $inserted, 'inserted contacts');
         $this->assertSame(2, Contact::query()->count());
 
-        $contact = Contact::query()->firstOrFail();
-        $this->assertSame('2348031234567', $contact->phone);
+        // The seeded existing contact has a lower id, so look the imported
+        // one up by its (normalised) phone number.
+        $contact = Contact::query()->where('phone', '2348031234567')->firstOrFail();
         $this->assertSame('Ada Okafor', $contact->name);
 
         $import->refresh();
