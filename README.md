@@ -89,7 +89,9 @@ Laragon ships `php_zip.dll` and `php_xmlreader.dll`, but both can be commented o
 `C:\laragon\bin\php\php-8.4.12-nts-Win32-vs17-x64\php.ini`).
 
 1. Open that `php.ini` in a text editor.
-2. Find `;extension=zip` and `;extension=xmlreader` and remove the leading `;` from both.
+2. Find `;extension=zip` and `;extension=xmlreader` and remove the leading `;` from each line that is
+   commented out. If a line is already active, leave it as it is (do not add a second copy — PHP warns
+   about a module being loaded twice).
 3. Save the file and restart the terminal (and Laragon, if PHP runs under Apache/nginx).
 4. Verify:
 
