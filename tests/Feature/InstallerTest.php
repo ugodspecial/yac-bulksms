@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\Concerns\InteractsWithSms;
 use Tests\TestCase;
@@ -222,14 +222,29 @@ class InstallerTest extends TestCase
 
     public function test_skipping_requires_a_working_configuration(): void
     {
-        config(['database.connections.sqlite.database' => $this->tempDir.'/missing/directory/none.sqlite']);
-        DB::purge();
+        // Simulate a database that has not been migrated yet. SQLite DDL is
+        // transactional, so the table comes back with the test transaction.
+        Schema::drop('settings');
 
         $this->post('/install/skip')
             ->assertRedirectToRoute('install.requirements')
             ->assertSessionHas('install_problems');
 
         $this->assertFileDoesNotExist($this->markerPath);
+    }
+
+    public function test_an_unwritable_sqlite_location_is_reported_instead_of_thrown(): void
+    {
+        $blocker = $this->tempDir.'/not-a-directory';
+        file_put_contents($blocker, 'this file is in the way');
+
+        $result = app(\App\Services\Install\DatabaseInstaller::class)->install([
+            'driver' => 'sqlite',
+            'database' => $blocker.'/database.sqlite',
+        ]);
+
+        $this->assertFalse($result->ok);
+        $this->assertStringContainsString('directory', $result->message);
     }
 
     public function test_skipping_marks_the_application_installed_when_the_configuration_works(): void
