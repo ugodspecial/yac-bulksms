@@ -15,7 +15,7 @@ wallet, configuring the delivery-report webhook). Everything routine happens ins
 1. [What the application does](#what-the-application-does)
 2. [Requirements](#requirements)
 3. [Architecture](#architecture)
-4. [Installation (browser installer)](#installation)
+4. [Installation (browser installer, skip option, cPanel)](#installation)
 5. [First sign-in and roles](#first-sign-in-and-roles)
 6. [Configuration reference](#configuration-reference)
 7. [Contacts, groups and imports](#contacts-groups-and-imports)
@@ -207,6 +207,22 @@ first. `php artisan migrate --seed` remains available for scripted deployments; 
 `ADMIN_PASSWORD` is empty — there is deliberately no well-known default password).
 
 **No demo contacts, campaigns or messages are ever seeded.** All statistics must reflect real activity.
+
+### Shared hosting (cPanel and similar)
+
+1. Upload the repository (or a ZIP of it) outside `public_html`, for example to `~/yac-bulksms`.
+2. In cPanel → *Domains*, point the document root of the domain to `~/yac-bulksms/public`.
+3. Run `composer install --no-dev --optimize-autoloader` and `npm ci && npm run build` from the Terminal
+   (or upload the `vendor/` and `public/build/` directories produced locally).
+4. Make `storage/` and `bootstrap/cache/` writable by the web server user (File Manager → Permissions).
+5. Open the domain: the installer checks the permissions, creates the MySQL database with the account you
+   enter (or asks you to create it in phpMyAdmin first) and finishes the installation.
+6. Add the cron entry `* * * * * cd ~/yac-bulksms && php artisan schedule:run` and start a queue worker
+   from the terminal or a cPanel cron entry such as
+   `* * * * * cd ~/yac-bulksms && php artisan queue:work --stop-when-empty --max-time=55`.
+
+If the host has no Node.js, build the assets on your computer and upload `public/build/`; the installer
+refuses to continue without them.
 
 ### Re-running the installer
 
