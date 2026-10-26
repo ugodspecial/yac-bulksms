@@ -681,6 +681,11 @@ the installer closing itself and database-backed sessions afterwards).
   administrator password is submitted through the browser.
 * Server variables (`APP_KEY`, `DB_*`, `TERMII_*`, …) always win over `.env`. On hosts that manage the
   environment externally, set `YAC_INSTALLER_ENABLED=false`.
+* **Never leave the installer open on a live server.** While it is open, whoever reaches the site can
+  create (or reset) an administrator account. It closes itself when it finishes or is skipped; if you
+  migrate the database by hand, finish the installer or set `YAC_INSTALLER_ENABLED=false`, and check that
+  `storage/app/installation.json` exists afterwards. `php artisan migrate` prints a warning while the
+  installer is still open.
 * All database access goes through Eloquent's parameterised queries.
 * CSV exports are written as-is (they are **not** protected against spreadsheet formula injection).
   Contact data is entered by authenticated operators, but if you import files from untrusted sources,
@@ -739,6 +744,8 @@ proxies so generated URLs and the webhook route use the correct scheme and host.
 * **One shared Termii account.** There are no per-user credentials, wallets, payments or subscriptions,
   by design.
 * **CSV exports are not formula-escaped.** Treat exported files from untrusted sources with care.
+* **A manually migrated database keeps the installer open** until you finish it or set
+  `YAC_INSTALLER_ENABLED=false` (see the security notes).
 * **The installer needs a writable `.env`.** On read-only filesystems (immutable containers, some PaaS
   platforms) configure the environment variables yourself, run `php artisan migrate --force` and set
   `YAC_INSTALLER_ENABLED=false`.

@@ -10,7 +10,9 @@ use App\Services\Termii\TermiiGateway;
 use App\Services\Termii\TermiiGatewayInterface;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -35,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerGates();
         $this->registerRateLimiters();
         $this->registerViewComposers();
+        $this->warnWhenInstallerIsStillOpen();
     }
 
     /**
@@ -62,6 +65,29 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         $installation->ensureApplicationKey();
+    }
+
+    /**
+     * Migrating by hand leaves the browser installer open, which would let
+     * anyone who reaches the site create an administrator. Warn loudly.
+     */
+    private function warnWhenInstallerIsStillOpen(): void
+    {
+        Event::listen(MigrationsEnded::class, function (MigrationsEnded $event): void {
+            if (! $this->app->runningInConsole() || $event->method !== 'up') {
+                return;
+            }
+
+            $installation = $this->app->make(InstallationManager::class);
+
+            if (! $installation->shouldRunInstaller()) {
+                return;
+            }
+
+            fwrite(STDERR, PHP_EOL.'  Warning: the browser installer is still open.'
+                .PHP_EOL.'  Finish it in the browser, or set YAC_INSTALLER_ENABLED=false, so nobody else can create an administrator.'
+                .PHP_EOL.PHP_EOL);
+        });
     }
 
     private function registerGates(): void
