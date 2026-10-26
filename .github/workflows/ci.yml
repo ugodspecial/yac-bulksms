@@ -55,7 +55,12 @@ jobs:
         run: php artisan migrate --force
 
       - name: Compile views
-        run: php artisan view:cache
+        run: |
+          php artisan view:cache
+          echo "Compiled views: $(ls storage/framework/views | wc -l)"
+          for f in storage/framework/views/*.php; do
+            php -l "$f" > /dev/null || { echo "INVALID COMPILED VIEW: $f"; php -l "$f" || true; }
+          done
 
       - name: Check routes compile
         run: php artisan route:cache
@@ -79,6 +84,17 @@ jobs:
             | grep -v '^#[0-9]' \
             | grep -v '^/usr/' > /tmp/phpunit-trimmed.log || true
           tail -n 40 storage/logs/laravel.log >> /tmp/phpunit-trimmed.log 2>/dev/null || true
+          {
+            echo '--- diagnostics ---'
+            grep -n 'providerTone\|oldestPendingLabel' resources/views/livewire/settings/index.blade.php || true
+            for f in storage/framework/views/*.php; do
+              php -l "$f" > /dev/null 2>&1 || {
+                echo "INVALID COMPILED VIEW: $f"
+                php -l "$f" || true
+                sed -n '1,60p' "$f"
+              }
+            done
+          } >> /tmp/phpunit-trimmed.log 2>&1 || true
           rm -f /tmp/phpunit-part-*
           split -b 55000 /tmp/phpunit-trimmed.log /tmp/phpunit-part- || true
           for part in /tmp/phpunit-part-*; do
