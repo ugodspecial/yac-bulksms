@@ -1,4 +1,9 @@
 /.phpunit.cache
+/database/*.sqlite
+/database/*.sqlite3
+/database/*.db
+/storage/app/installation.json
+/storage/framework/installer.key
 /node_modules
 /public/build
 /public/hot

@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\EnsurePasswordIsChanged;
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'password.changed' => EnsurePasswordIsChanged::class,
+        ]);
+
+        // Every browser request is sent to the installer until it has run.
+        $middleware->web(append: [
+            EnsureApplicationIsInstalled::class,
         ]);
 
         // The Termii delivery-report webhook is called by the provider, so it

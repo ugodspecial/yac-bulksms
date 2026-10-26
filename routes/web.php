@@ -4,6 +4,7 @@ use App\Http\Controllers\CampaignExportController;
 use App\Http\Controllers\ContactExportController;
 use App\Http\Controllers\ContactImportReportController;
 use App\Http\Controllers\DeliveryReportWebhookController;
+use App\Http\Controllers\Install\InstallerController;
 use App\Http\Controllers\LogoutController;
 use App\Livewire\AuditLogs\Index as AuditLogsIndex;
 use App\Livewire\Auth\Login;
@@ -23,6 +24,18 @@ use App\Livewire\Settings\Index as SettingsIndex;
 use App\Livewire\Suppressions\Index as SuppressionsIndex;
 use App\Livewire\Users\Index as UsersIndex;
 use Illuminate\Support\Facades\Route;
+
+// The browser installer. It is only reachable while the application has not
+// been installed yet (see EnsureApplicationIsInstalled).
+Route::prefix('install')->name('install.')->group(function (): void {
+    Route::get('/', [InstallerController::class, 'requirements'])->name('requirements');
+    Route::get('database', [InstallerController::class, 'database'])->name('database');
+    Route::post('database', [InstallerController::class, 'storeDatabase'])->name('database.store');
+    Route::get('application', [InstallerController::class, 'application'])->name('application');
+    Route::post('application', [InstallerController::class, 'storeApplication'])->name('application.store');
+    Route::post('skip', [InstallerController::class, 'skip'])->name('skip');
+    Route::get('complete', [InstallerController::class, 'complete'])->name('complete');
+});
 
 Route::redirect('/', '/dashboard');
 

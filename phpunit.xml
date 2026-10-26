@@ -36,5 +36,6 @@
         <env name="TERMII_WEBHOOK_ENABLED" value="true"/>
         <env name="TERMII_WEBHOOK_SECRET" value="test-webhook-secret"/>
         <env name="YAC_STALE_CLAIM_MINUTES" value="15"/>
+        <env name="YAC_INSTALLER_ENABLED" value="false"/>
     </php>
 </phpunit>

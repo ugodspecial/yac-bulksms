@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Enums\Permission;
 use App\Models\User;
+use App\Services\Install\InstallationManager;
 use App\Services\Settings\SettingsService;
 use App\Services\Termii\TermiiGateway;
 use App\Services\Termii\TermiiGatewayInterface;
@@ -21,16 +22,46 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(SettingsService::class);
         $this->app->singleton(TermiiGatewayInterface::class, TermiiGateway::class);
+        $this->app->singleton(InstallationManager::class);
     }
 
     public function boot(): void
     {
+        $this->prepareInstallerEnvironment();
+
         // Surface mass-assignment mistakes during development and in tests.
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
 
         $this->registerGates();
         $this->registerRateLimiters();
         $this->registerViewComposers();
+    }
+
+    /**
+     * Before the application is installed there may be no database, no .env
+     * and no APP_KEY. Sessions and the cache are moved to the filesystem so the
+     * installer can render forms (and pass its CSRF check), and a stable
+     * temporary key keeps cookies readable between requests.
+     */
+    private function prepareInstallerEnvironment(): void
+    {
+        if ($this->app->runningInConsole()) {
+            return;
+        }
+
+        /** @var InstallationManager $installation */
+        $installation = $this->app->make(InstallationManager::class);
+
+        if (! $installation->shouldRunInstaller()) {
+            return;
+        }
+
+        config([
+            'session.driver' => is_writable(storage_path('framework/sessions')) ? 'file' : 'array',
+            'cache.default' => is_writable(storage_path('framework/cache')) ? 'file' : 'array',
+        ]);
+
+        $installation->ensureApplicationKey();
     }
 
     private function registerGates(): void

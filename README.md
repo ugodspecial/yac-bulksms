@@ -15,7 +15,7 @@ wallet, configuring the delivery-report webhook). Everything routine happens ins
 1. [What the application does](#what-the-application-does)
 2. [Requirements](#requirements)
 3. [Architecture](#architecture)
-4. [Installation](#installation)
+4. [Installation (browser installer)](#installation)
 5. [First sign-in and roles](#first-sign-in-and-roles)
 6. [Configuration reference](#configuration-reference)
 7. [Contacts, groups and imports](#contacts-groups-and-imports)
@@ -66,7 +66,10 @@ and re-creating the Termii dashboard inside this application.
 * Composer 2.
 * Node.js 20+ and npm (to build the Tailwind/Vite assets).
 * A queue worker process and a scheduler cron entry (see below).
-* A Termii account with at least one approved sender ID.
+* A Termii account with at least one approved sender ID (optional at first: campaigns can be prepared
+  without it, but nothing can be sent until it is configured).
+* Write access for the web server user to the application root (for `.env`), `storage/` and
+  `bootstrap/cache/`.
 
 ---
 
@@ -109,43 +112,101 @@ app/
 
 ## Installation
 
+There is **no command-line step required to create the database**. After the code and the built
+assets are on the server, open the application in a browser: a four-step installer configures
+everything, creates the database automatically and writes `.env` for you.
+
+### 1. Put the code on the server
+
 ```bash
 git clone https://github.com/ugodspecial/yac-bulksms.git
 cd yac-bulksms
 
-composer install
-cp .env.example .env
-php artisan key:generate
-
-# Create the database, then configure DB_* in .env
-#   CREATE DATABASE yac_bulksms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-php artisan migrate --seed
-
-npm ci
-npm run build
-
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build        # or deploy public/build from CI
 php artisan storage:link
-
-# Start a worker and the scheduler (see the dedicated sections)
-php artisan queue:work --tries=3 --timeout=300
-php artisan schedule:work        # development only
 ```
 
-`php artisan migrate --seed` runs two seeders:
+The application root, `storage/` and `bootstrap/cache/` must be writable by the web server user:
 
-* `SettingsSeeder` — writes default application settings (safe to re-run; existing values win).
-* `AdminUserSeeder` — creates the first administrator from `ADMIN_NAME`, `ADMIN_EMAIL` and
-  `ADMIN_PASSWORD`. If `ADMIN_PASSWORD` is empty a random password is generated and printed **once**
-  by the seeder; there is deliberately no well-known default password.
+```bash
+sudo chown -R www-data:www-data storage bootstrap/cache
+sudo chmod -R ug+rwX storage bootstrap/cache
+```
 
-**No demo contacts, campaigns or messages are seeded.** All statistics must reflect real activity.
+You do **not** need to copy `.env.example`, run `key:generate`, create the database or run the
+migrations by hand. Opening the site before that is done shows the installer instead of an error.
 
-Set `TERMII_API_KEY`, `TERMII_SENDER_ID` and (for delivery reports) `TERMII_WEBHOOK_SECRET` before
-sending anything. The application refuses to confirm a campaign while Termii is not configured.
+### 2. Open the application in a browser
 
-For local development you can run everything without a real Termii key: create contacts, import
-files, build campaigns and open the review screen. Only confirmation requires a configured provider.
+`http://your-host/` (or `php artisan serve`) redirects to `/install`:
+
+| Step | What happens |
+| --- | --- |
+| **1. Server requirements** | PHP version, required extensions, writable directories and the built assets are checked. Anything missing is listed with what to do; the installer only continues when the required checks pass. |
+| **2. Database** | Choose **MySQL/MariaDB** or **SQLite**. For MySQL enter host, port, database name, user and password; **the database is created automatically** if it does not exist (and the user is allowed to create it). SQLite simply creates a file. The connection is tested immediately and the credentials are written to `.env`. |
+| **3. Application** | Application name, timezone, URL and environment, the first administrator (name, email, password), and optionally the Termii API key and sender ID. |
+| **4. Finish** | The installer runs the migrations, writes the default settings, creates the administrator, closes itself and shows the remaining operational steps (queue worker, cron entry, webhook). |
+
+Notes:
+
+* **Passwords are never written to `.env`.** The administrator password goes into the database (hashed);
+  only non-secret configuration and the Termii API key are written to `.env`.
+* `APP_KEY` is generated during step 2. An existing key in `.env` is reused, so re-running the installer
+  does not invalidate sessions unnecessarily.
+* A `.env.backup` copy is made before every write, and keys the installer does not manage (comments,
+  custom variables) are preserved.
+* Session, cache and queue are set to the `database` driver, so no Redis or extra services are needed.
+* The installer keeps a temporary key in `storage/framework/installer.key` while it runs, so forms work
+  before `.env` exists.
+* After finishing, every `/install` URL redirects to the dashboard. The installer is disabled for good:
+  re-running it would overwrite `.env` and reset the administrator password.
+
+### 3. Start the workers
+
+```bash
+php artisan queue:work --tries=3 --timeout=300    # supervised in production
+php artisan schedule:work                          # development only; use cron in production
+```
+
+Both are described in [Queues and workers](#queues-and-workers) and [Scheduler](#scheduler).
+
+### Skipping the installer
+
+If you prefer to configure everything yourself, provide the settings through `.env` or real environment
+variables and run `php artisan migrate --force`. On step 1 press **Skip the installer**: it checks the
+`APP_KEY`, the database connection and the required tables, and only then steps aside (otherwise it tells
+you exactly what is missing).
+
+You can also disable the installer entirely — useful on container platforms where the environment is
+provided externally:
+
+```dotenv
+YAC_INSTALLER_ENABLED=false
+```
+
+### Command-line alternative
+
+The installer has a terminal equivalent:
+
+```bash
+php artisan app:install --admin-name="YAC Admin" --admin-email=you@example.com
+```
+
+It uses the database configuration already present in `.env`/the environment, so create the database
+first. `php artisan migrate --seed` remains available for scripted deployments; the seeder reads
+`ADMIN_NAME`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` (a random password is generated and printed once when
+`ADMIN_PASSWORD` is empty — there is deliberately no well-known default password).
+
+**No demo contacts, campaigns or messages are ever seeded.** All statistics must reflect real activity.
+
+### Re-running the installer
+
+Delete the marker and reload the site:
+
+```bash
+rm storage/app/installation.json
+```
 
 ### Development server
 
@@ -155,13 +216,15 @@ npm run dev        # Vite dev server with hot reload
 php artisan queue:work
 ```
 
+For local development you can run everything without a real Termii key: create contacts, import files,
+build campaigns and open the review screen. Only confirmation requires a configured provider.
+
 ---
 
 ## First sign-in and roles
 
-Sign in with the credentials from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (or the generated password printed
-by the seeder). You will be asked to change the password because the seeded account has
-`must_change_password = true`.
+Sign in with the administrator account you created in the installer (or the one produced by
+`php artisan migrate --seed` / `app:install`, which is asked to change its password at first sign-in).
 
 | Role | Description |
 | --- | --- |
@@ -205,6 +268,7 @@ All values live in `.env`; **never commit a filled `.env`**.
 | `TERMII_WEBHOOK_ENABLED` | Enables `POST /webhooks/termii` |
 | `TERMII_WEBHOOK_SECRET` | Secret used for the Termii HMAC-SHA512 signature; **required** for the webhook |
 | `YAC_STALE_CLAIM_MINUTES` | Age after which a claimed recipient is treated as an interrupted job (default 15) |
+| `YAC_INSTALLER_ENABLED` | Serve the browser installer while the application is not installed (default `true`). Set to `false` when the environment is managed outside the application |
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First administrator created by the seeder |
 
 Admin-only settings stored in the database (Settings screen): application name, logo, timezone,
@@ -507,6 +571,7 @@ Use `php artisan schedule:work` in development and a single cron entry in produc
 | `campaigns:reconcile {--limit=200}` | Flag interrupted recipient claims and queue delivery-report polling |
 | `termii:balance` | Refresh provider balance and connection status |
 | `logs:prune {--days=} {--dry-run}` | Delete operational logs older than the retention period |
+| `app:install {--admin-name=} {--admin-email=} {--admin-password=} {--force}` | Terminal equivalent of the browser installer (migrate, default settings, first administrator) |
 
 ---
 
@@ -550,6 +615,7 @@ so no MySQL, queue worker or SMS credit is needed. The suite covers:
 | Auth & roles | `tests/Feature/AuthenticationTest.php`, `tests/Feature/AuthorizationTest.php` |
 | Contacts | `tests/Feature/ContactsTest.php` — normalisation, duplicates, unsubscribe/re-subscribe rules |
 | Settings & dashboard | `tests/Feature/SettingsTest.php`, `tests/Feature/DashboardTest.php` — secret masking, real statistics |
+| Installer | `tests/Feature/InstallerTest.php`, `tests/Unit/EnvFileWriterTest.php` — redirects before installation, every page renders without a database, SQLite creation, MySQL name validation, migrations plus administrator creation, `.env` merging and escaping, skipping, and the installer closing itself |
 
 No test sends a real SMS or calls Termii: the interface is replaced by `Tests\Support\FakeTermiiGateway`,
 and the adapter itself is only exercised against `Http::fake()`.
@@ -580,6 +646,13 @@ CI (`.github/workflows/ci.yml`) runs on PHP 8.3 and, on every push and pull requ
 * Passwords use Laravel's hashing and a minimum of 10 characters with letters and numbers. The seeded
   administrator must change the initial password.
 * Contact imports are stored on the private disk (`storage/app/private`), never under `public/`.
+* The installer only exists while the application is not installed: once it finishes it records
+  `storage/app/installation.json` and every `/install` URL redirects to the dashboard. It is the only
+  place that writes secrets to `.env`, it never writes the administrator password there, and it makes a
+  `.env.backup` before each write. Run the first installation over HTTPS (or on localhost) because the
+  administrator password is submitted through the browser.
+* Server variables (`APP_KEY`, `DB_*`, `TERMII_*`, …) always win over `.env`. On hosts that manage the
+  environment externally, set `YAC_INSTALLER_ENABLED=false`.
 * All database access goes through Eloquent's parameterised queries.
 * CSV exports are written as-is (they are **not** protected against spreadsheet formula injection).
   Contact data is entered by authenticated operators, but if you import files from untrusted sources,
@@ -592,9 +665,9 @@ CI (`.github/workflows/ci.yml`) runs on PHP 8.3 and, on every push and pull requ
 1. `git pull` / deploy the release.
 2. `composer install --no-dev --optimize-autoloader`.
 3. `npm ci && npm run build` (or build assets in CI and ship `public/build`).
-4. Set production `.env` values (`APP_ENV=production`, `APP_DEBUG=false`, `APP_URL`, database, Termii
-   credentials, webhook secret).
-5. `php artisan migrate --force`.
+4. Set production `.env` values (`APP_URL`, Termii credentials, webhook secret) or run the browser
+   installer once with the environment set to `production`.
+5. `php artisan migrate --force` (the installer does this for you on a fresh server).
 6. `php artisan config:cache && php artisan route:cache && php artisan view:cache`.
 7. `php artisan storage:link` (once per server) and ensure `storage/` and `bootstrap/cache/` are
    writable by the web user.
@@ -638,6 +711,11 @@ proxies so generated URLs and the webhook route use the correct scheme and host.
 * **One shared Termii account.** There are no per-user credentials, wallets, payments or subscriptions,
   by design.
 * **CSV exports are not formula-escaped.** Treat exported files from untrusted sources with care.
+* **The installer needs a writable `.env`.** On read-only filesystems (immutable containers, some PaaS
+  platforms) configure the environment variables yourself, run `php artisan migrate --force` and set
+  `YAC_INSTALLER_ENABLED=false`.
+* **The installer creates the database, not the database user.** The MySQL user has to exist already and
+  must be allowed to create the schema; otherwise create the database first and enter its name.
 * **Audit retention.** Audit entries are pruned by the retention command (default 90 days), so keep
   separate backups if you need a longer regulatory history.
 
@@ -654,7 +732,11 @@ proxies so generated URLs and the webhook route use the correct scheme and host.
 | "No eligible recipients" on review | Everyone selected is unsubscribed, suppressed, duplicated or invalid — check the exclusion summary |
 | Balance shows "Not checked" | Run `php artisan termii:balance` or press "Check balance" in Settings |
 | 401/403 on the webhook | Signature mismatch: the secret must be identical here and in the Termii console; the endpoint returns 404 while disabled |
-| Assets unstyled | `npm run build` was not run or `public/build` was not deployed |
+| Assets unstyled | `npm run build` was not run or `public/build` was not deployed; the installer's first step reports the missing manifest |
+| Installer says `.env` or storage is not writable | Give the web server user write access to the application root, `storage/` and `bootstrap/cache/` (see the installation section) |
+| Installer step 2 cannot create the MySQL database | The database user lacks `CREATE`; create the database manually (for example in phpMyAdmin) and enter its name again, or grant the privilege |
+| `/install` redirects to the dashboard but the tables are missing | The installation marker exists: `rm storage/app/installation.json` and reload, or run `php artisan migrate --force` |
+| The application still sees old values after installing | The installer clears `bootstrap/cache/config.php`; if you cache configuration yourself, run `php artisan config:clear` |
 
 ---
 
