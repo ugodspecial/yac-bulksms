@@ -127,11 +127,7 @@
                                 <td class="table-cell font-mono text-xs">{{ $row->phone_normalized ? format_phone($row->phone_normalized) : '—' }}</td>
                                 <td class="table-cell text-xs text-slate-600">{{ $row->email ?: '—' }}</td>
                                 <td class="table-cell">
-                                    <x-ui.badge :class="match ($row->status) {
-                                        App\Enums\ImportRowStatus::Valid => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-                                        App\Enums\ImportRowStatus::Invalid => 'bg-rose-50 text-rose-700 ring-rose-200',
-                                        App\Enums\ImportRowStatus::Duplicate => 'bg-amber-50 text-amber-700 ring-amber-200',
-                                    }">{{ $row->status->label() }}</x-ui.badge>
+                                    <x-ui.badge :class="$row->status->badgeClasses()">{{ $row->status->label() }}</x-ui.badge>
                                 </td>
                                 <td class="table-cell max-w-[260px] text-xs text-slate-600">{{ $row->error ?: '' }}</td>
                             </tr>

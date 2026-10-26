@@ -138,12 +138,15 @@
             <x-ui.card class="p-5">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-slate-900">Termii connection</h2>
-                    <x-ui.badge :class="match ($providerStatus->status) {
-                        'ok' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-                        'degraded' => 'bg-amber-50 text-amber-700 ring-amber-200',
-                        'error' => 'bg-rose-50 text-rose-700 ring-rose-200',
-                        default => 'bg-slate-100 text-slate-600 ring-slate-200',
-                    }">{{ ucfirst($providerStatus->status) }}</x-ui.badge>
+                    @php
+                        $providerTone = match ($providerStatus->status) {
+                            'ok' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                            'degraded' => 'bg-amber-50 text-amber-700 ring-amber-200',
+                            'error' => 'bg-rose-50 text-rose-700 ring-rose-200',
+                            default => 'bg-slate-100 text-slate-600 ring-slate-200',
+                        };
+                    @endphp
+                    <x-ui.badge :class="$providerTone">{{ ucfirst($providerStatus->status) }}</x-ui.badge>
                 </div>
 
                 <dl class="mt-3 divide-y divide-slate-100">

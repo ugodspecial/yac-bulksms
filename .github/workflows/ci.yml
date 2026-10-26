@@ -70,11 +70,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          REPORT=$(tail -c 60000 /tmp/phpunit.log 2>/dev/null || echo 'no phpunit output')
-          if [ -z "$(echo "$REPORT" | tr -d '[:space:]')" ]; then
-            REPORT=$(tail -n 200 storage/logs/laravel.log 2>/dev/null || echo 'no output captured')
+          LOG=/tmp/phpunit.log
+          if [ ! -s "$LOG" ]; then
+            cp storage/logs/laravel.log "$LOG" 2>/dev/null || echo 'no output captured' > "$LOG"
           fi
-          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments"             -f body="$REPORT" > /dev/null || echo 'could not post the failure report'
+          head -c 200000 "$LOG" > /tmp/phpunit-trimmed.log
+          rm -f /tmp/phpunit-part-*
+          split -b 55000 /tmp/phpunit-trimmed.log /tmp/phpunit-part- || true
+          for part in /tmp/phpunit-part-*; do
+            [ -f "$part" ] || continue
+            gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -f body="$(cat "$part")" > /dev/null || echo 'could not post a failure report part'
+          done
 
   assets:
     name: Node 20 · assets
