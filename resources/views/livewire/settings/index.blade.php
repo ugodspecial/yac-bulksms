@@ -152,9 +152,9 @@
                 <dl class="mt-3 divide-y divide-slate-100">
                     <x-ui.details label="API key" :value="$maskedKey" />
                     <x-ui.details label="Endpoint host" :value="$baseUrlHost" />
-                    <x-ui.details label="Last balance" :value="$providerStatus->balance !== null ? number_format((float) $providerStatus->balance, 2).' '.($providerStatus->currency ?? 'NGN') : 'Not checked'" />
-                    <x-ui.details label="Checked" :value="$providerStatus->last_balance_at?->timezone(settings()->timezone())->toDayDateTimeString() ?? 'Never'" />
-                    <x-ui.details label="Sender ID" :value="$providerStatus->sender_id ?: (settings()->defaultSenderId() ?: 'Not set')" />
+                    <x-ui.details label="Last balance" :value="$lastBalanceLabel" />
+                    <x-ui.details label="Checked" :value="$checkedAtLabel" />
+                    <x-ui.details label="Sender ID" :value="$senderIdLabel" />
                 </dl>
 
                 @if ($providerStatus->last_error)
@@ -184,8 +184,8 @@
             <x-ui.card class="p-5">
                 <h2 class="text-sm font-semibold text-slate-900">Delivery reports</h2>
                 <dl class="mt-3 divide-y divide-slate-100">
-                    <x-ui.details label="Webhook" :value="$webhookEnabled ? 'Enabled' : 'Disabled'" />
-                    <x-ui.details label="Signing secret" :value="$webhookSecretConfigured ? 'Configured' : 'Not configured'" />
+                    <x-ui.details label="Webhook" :value="$webhookEnabledLabel" />
+                    <x-ui.details label="Signing secret" :value="$webhookSecretLabel" />
                 </dl>
                 <p class="mt-3 text-xs text-slate-600">
                     Webhook URL: <code class="break-all rounded bg-slate-100 px-1">{{ url('/webhooks/termii') }}</code>
@@ -202,7 +202,7 @@
                     <x-ui.details label="Connection" :value="$queue['connection']" />
                     <x-ui.details label="Pending jobs" :value="number_format($queue['pending'])" />
                     <x-ui.details label="Failed jobs" :value="number_format($queue['failed'])" />
-                    <x-ui.details label="Oldest pending" :value="$queue['oldest'] ? \Illuminate\Support\Carbon::createFromTimestamp((int) $queue['oldest'])->diffForHumans() : '—'" />
+                    <x-ui.details label="Oldest pending" :value="$oldestPendingLabel" />
                 </dl>
                 @if ($queue['failed'] > 0)
                     <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">

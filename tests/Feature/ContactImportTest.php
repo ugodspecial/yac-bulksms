@@ -79,16 +79,20 @@ class ContactImportTest extends TestCase
         app(ContactImportProcessor::class)->validate($import);
 
         $import->refresh();
-        $this->assertSame(1, $import->valid_rows);
-        $this->assertSame(3, $import->invalid_rows);
-        $this->assertSame(2, $import->duplicate_rows);
-        $this->assertSame(1, Contact::query()->count());
+
+        $statuses = $import->rows()->orderBy('row_number')->pluck('status', 'row_number')->all();
+        $context = 'row statuses: '.json_encode(array_map(fn ($status) => $status->value, $statuses));
+
+        $this->assertSame(1, $import->valid_rows, 'valid rows — '.$context);
+        $this->assertSame(3, $import->invalid_rows, 'invalid rows — '.$context);
+        $this->assertSame(2, $import->duplicate_rows, 'duplicate rows — '.$context);
+        $this->assertSame(1, Contact::query()->count(), 'contacts before commit — '.$context);
 
         $admin = $this->admin();
         $inserted = app(ContactImportProcessor::class)->commit($import, $admin);
 
-        $this->assertSame(1, $inserted);
-        $this->assertSame(1, Contact::query()->count());
+        $this->assertSame(1, $inserted, 'inserted contacts');
+        $this->assertSame(2, Contact::query()->count());
 
         $contact = Contact::query()->firstOrFail();
         $this->assertSame('2348031234567', $contact->phone);

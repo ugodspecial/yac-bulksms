@@ -205,8 +205,11 @@ class Index extends Component
             'oldest' => DB::table('jobs')->min('created_at'),
         ];
 
+        $providerStatus = ProviderStatus::termii();
+        $timezone = $settings->timezone();
+
         return view('livewire.settings.index', [
-            'providerStatus' => ProviderStatus::termii(),
+            'providerStatus' => $providerStatus,
             'maskedKey' => $gateway->maskedApiKey(),
             'baseUrlHost' => parse_url((string) config('termii.base_url'), PHP_URL_HOST) ?: config('termii.base_url'),
             'webhookEnabled' => (bool) config('termii.webhook.enabled'),
@@ -214,6 +217,16 @@ class Index extends Component
             'logoPath' => $settings->logoPath(),
             'timezones' => DateTimeZone::listIdentifiers(),
             'queue' => $queue,
+            'lastBalanceLabel' => $providerStatus->balance !== null
+                ? number_format((float) $providerStatus->balance, 2).' '.($providerStatus->currency ?? 'NGN')
+                : 'Not checked',
+            'checkedAtLabel' => $providerStatus->last_balance_at?->copy()->timezone($timezone)->toDayDateTimeString() ?? 'Never',
+            'senderIdLabel' => $providerStatus->sender_id ?: ($settings->defaultSenderId() ?: 'Not set'),
+            'webhookEnabledLabel' => (bool) config('termii.webhook.enabled') ? 'Enabled' : 'Disabled',
+            'webhookSecretLabel' => filled(config('termii.webhook.secret')) ? 'Configured' : 'Not configured',
+            'oldestPendingLabel' => $queue['oldest']
+                ? \Illuminate\Support\Carbon::createFromTimestamp((int) $queue['oldest'])->diffForHumans()
+                : '—',
         ]);
     }
 
