@@ -79,7 +79,7 @@
                         </x-ui.field>
 
                         <div class="sm:col-span-2">
-                            <x-ui.field label="Custom fields" name="customFields" hint="Comma separated keys available as {{ '{{custom.key}}' }} in messages, for example: department, account_number.">
+                            <x-ui.field label="Custom fields" name="customFields" hint="Comma separated field keys, for example: department, account_number. Use them in messages as custom.<key>.">
                                 <x-ui.input wire:model="customFields" placeholder="department, account_number" />
                             </x-ui.field>
                         </div>
