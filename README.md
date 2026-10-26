@@ -79,9 +79,11 @@ and re-creating the Termii dashboard inside this application.
 app/
 ├── Enums/                     Campaign, recipient, import, provider and role enums
 ├── Exceptions/                Campaign state/preflight and provider-temporary exceptions
+├── Console/Commands/          Scheduler commands plus `app:install`
 ├── Http/
 │   ├── Controllers/           CSV exports, import reports, logout, Termii webhook
-│   └── Middleware/            Active-account and forced-password-change guards
+│   ├── Controllers/Install/   The browser installer steps
+│   └── Middleware/            Installer guard, active-account and forced-password-change guards
 ├── Jobs/                      Dispatch, batch send, import validation/commit, reconciliation
 ├── Livewire/                  Screen components (dashboard, contacts, campaigns, …)
 ├── Models/                    Eloquent models
@@ -91,6 +93,8 @@ app/
     ├── Audit/                 AuditLogger (best-effort, never breaks the operation)
     ├── Campaign/              RecipientResolver, CampaignService, CampaignProgress
     ├── Contacts/              ContactService, import parser/processor, committer
+    ├── Install/               InstallationManager, requirements checker, database installer,
+    │                          .env writer and the migration/administrator runner
     ├── Phone/                 libphonenumber wrapper (E.164 digits)
     ├── Provider/              ProviderHealthService (balance, sender IDs, last error)
     ├── Sms/                   SegmentCalculator, MessageRenderer
@@ -98,6 +102,10 @@ app/
     └── Termii/                TermiiGateway + DTOs behind TermiiGatewayInterface
 ```
 
+* **Nothing requires a pre-existing database to boot.** Until the installer has finished, the global
+  `EnsureApplicationIsInstalled` middleware answers every browser request, and the provider switches
+  sessions/cache to the filesystem and generates a temporary `APP_KEY`, so the installer pages work on a
+  bare checkout.
 * **The gateway is the single boundary to Termii.** `App\Services\Termii\TermiiGateway` wraps
   [`zeevx/lara-termii`](https://github.com/zeevx/lara-termii) (v1.3) and implements
   `TermiiGatewayInterface`. The interface is what the rest of the application (and the tests) uses.
@@ -620,14 +628,18 @@ so no MySQL, queue worker or SMS credit is needed. The suite covers:
 No test sends a real SMS or calls Termii: the interface is replaced by `Tests\Support\FakeTermiiGateway`,
 and the adapter itself is only exercised against `Http::fake()`.
 
-CI (`.github/workflows/ci.yml`) runs on PHP 8.3 and, on every push and pull request:
+CI (`.github/workflows/ci.yml`) runs three jobs on every push and pull request:
 
-1. installs the Composer dependencies,
-2. migrates a fresh SQLite database and runs the seeders (with throwaway CI credentials),
-3. lints every compiled Blade view and caches the routes,
-4. runs this test suite,
-5. smoke-tests the scheduler/console commands, and
-6. builds the frontend assets with Node.
+**PHP 8.3 · tests** — installs the dependencies, migrates and seeds a fresh SQLite database (with
+throwaway CI credentials), lints every compiled Blade view, caches the routes, runs this test suite and
+smoke-tests the scheduler commands.
+
+**Browser installer · end to end** — starts the application with no `.env`, no `APP_KEY` and no database,
+then drives the installer over real HTTP (redirects before installation, the SQLite database created
+through the form, CSRF and sessions with the temporary key, the administrator created by the migrations,
+the installer closing itself and database-backed sessions afterwards).
+
+**Node 20 · assets** — builds the Tailwind/Vite assets.
 
 
 ---
