@@ -54,6 +54,21 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --force
 
+      - name: Bootstrap a fresh database with the seeders
+        env:
+          # Throwaway credentials for the ephemeral CI database only.
+          ADMIN_EMAIL: ci-admin@example.test
+          ADMIN_PASSWORD: ci-only-not-a-real-secret
+        run: |
+          php artisan migrate:fresh --seed --force
+          php artisan about --only=environment
+
+      - name: Smoke-test the operational commands
+        run: |
+          php artisan campaigns:dispatch-scheduled
+          php artisan campaigns:reconcile
+          php artisan logs:prune --dry-run
+
       - name: Compile views
         run: |
           php artisan view:cache

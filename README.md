@@ -554,8 +554,15 @@ so no MySQL, queue worker or SMS credit is needed. The suite covers:
 No test sends a real SMS or calls Termii: the interface is replaced by `Tests\Support\FakeTermiiGateway`,
 and the adapter itself is only exercised against `Http::fake()`.
 
-CI (`.github/workflows/ci.yml`) runs the suite on PHP 8.3, compiles Blade views and builds the frontend
-assets on every push and pull request.
+CI (`.github/workflows/ci.yml`) runs on PHP 8.3 and, on every push and pull request:
+
+1. installs the Composer dependencies,
+2. migrates a fresh SQLite database and runs the seeders (with throwaway CI credentials),
+3. lints every compiled Blade view and caches the routes,
+4. runs this test suite,
+5. smoke-tests the scheduler/console commands, and
+6. builds the frontend assets with Node.
+
 
 ---
 

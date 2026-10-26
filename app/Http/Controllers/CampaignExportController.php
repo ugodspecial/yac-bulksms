@@ -6,6 +6,7 @@ use App\Enums\RecipientStatus;
 use App\Models\Campaign;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -58,11 +59,12 @@ class CampaignExportController extends Controller
             }
 
             if (! empty($filters['from'])) {
-                $query->where('created_at', '>=', $filters['from']);
+                $query->where('created_at', '>=', Carbon::parse($filters['from'])->startOfDay());
             }
 
             if (! empty($filters['to'])) {
-                $query->where('created_at', '<=', $filters['to']);
+                // Include the whole final day, not just midnight.
+                $query->where('created_at', '<=', Carbon::parse($filters['to'])->endOfDay());
             }
 
             $query->chunk(1000, function ($recipients) use ($out): void {
