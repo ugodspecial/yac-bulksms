@@ -102,7 +102,7 @@
                     </x-ui.select>
                 </x-ui.field>
 
-                :label="$editingId ? 'New password (optional)' : 'Password'" name="password" hint="At least 10 characters with letters and numbers.">
+                <x-ui.field :label="$editingId ? 'New password (optional)' : 'Password'" name="password" hint="At least 10 characters with letters and numbers.">
                     <x-ui.input type="password" wire:model="password" autocomplete="new-password" />
                 </x-ui.field>
             </div>
