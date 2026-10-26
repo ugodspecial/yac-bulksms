@@ -63,7 +63,7 @@ jobs:
       - name: Run the test suite
         run: |
           set -o pipefail
-          php artisan test --no-ansi 2>&1 | tee /tmp/phpunit.log
+          vendor/bin/phpunit --no-progress --colors=never 2>&1 | tee /tmp/phpunit.log
 
       - name: Report failures
         if: failure()
