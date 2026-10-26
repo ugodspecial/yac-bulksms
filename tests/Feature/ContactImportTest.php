@@ -122,6 +122,25 @@ class ContactImportTest extends TestCase
         $this->assertStringContainsString('phone', (string) $import->failure_reason);
     }
 
+    public function test_a_corrupt_spreadsheet_fails_with_a_readable_reason(): void
+    {
+        $path = 'imports/broken.xlsx';
+        Storage::disk('local')->put($path, 'this is not a zip workbook');
+
+        $import = ContactImport::factory()->create([
+            'user_id' => $this->admin()->id,
+            'stored_path' => $path,
+            'file_type' => 'xlsx',
+        ]);
+
+        $this->assertFalse(app(ContactImportProcessor::class)->validate($import));
+
+        $import->refresh();
+
+        $this->assertSame(ImportStatus::Failed, $import->status);
+        $this->assertStringContainsString('xlsx', (string) $import->failure_reason);
+    }
+
     public function test_uploading_a_file_through_the_component_queues_validation(): void
     {
         Queue::fake();

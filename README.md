@@ -14,23 +14,24 @@ wallet, configuring the delivery-report webhook). Everything routine happens ins
 
 1. [What the application does](#what-the-application-does)
 2. [Requirements](#requirements)
-3. [Architecture](#architecture)
-4. [Installation (browser installer, skip option, cPanel)](#installation)
-5. [First sign-in and roles](#first-sign-in-and-roles)
-6. [Configuration reference](#configuration-reference)
-7. [Contacts, groups and imports](#contacts-groups-and-imports)
-8. [Campaigns and the send pipeline](#campaigns-and-the-send-pipeline)
-9. [Personalisation and SMS segment estimation](#personalisation-and-sms-segment-estimation)
-10. [Delivery reports](#delivery-reports)
-11. [Queues and workers](#queues-and-workers)
-12. [Scheduler](#scheduler)
-13. [Console commands](#console-commands)
-14. [Audit logging and exports](#audit-logging-and-exports)
-15. [Tests](#tests)
-16. [Security notes](#security-notes)
-17. [Deployment checklist](#deployment-checklist)
-18. [Limitations and provider-dependent behaviour](#limitations-and-provider-dependent-behaviour)
-19. [Troubleshooting](#troubleshooting)
+3. [PHP extensions](#php-extensions)
+4. [Architecture](#architecture)
+5. [Installation (browser installer, skip option, cPanel)](#installation)
+6. [First sign-in and roles](#first-sign-in-and-roles)
+7. [Configuration reference](#configuration-reference)
+8. [Contacts, groups and imports](#contacts-groups-and-imports)
+9. [Campaigns and the send pipeline](#campaigns-and-the-send-pipeline)
+10. [Personalisation and SMS segment estimation](#personalisation-and-sms-segment-estimation)
+11. [Delivery reports](#delivery-reports)
+12. [Queues and workers](#queues-and-workers)
+13. [Scheduler](#scheduler)
+14. [Console commands](#console-commands)
+15. [Audit logging and exports](#audit-logging-and-exports)
+16. [Tests](#tests)
+17. [Security notes](#security-notes)
+18. [Deployment checklist](#deployment-checklist)
+19. [Limitations and provider-dependent behaviour](#limitations-and-provider-dependent-behaviour)
+20. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -60,16 +61,77 @@ and re-creating the Termii dashboard inside this application.
 
 ## Requirements
 
-* PHP **8.2+** (8.3 recommended) with `mbstring`, `openssl`, `pdo`, `tokenizer`, `xml`, `ctype`,
-  `json`, `bcmath`, `fileinfo`, `intl` (recommended) and either `pdo_mysql` or `pdo_sqlite`.
+* PHP **8.2 – 8.5** (8.3 recommended) with these extensions: `mbstring`, `openssl`, `pdo`, `tokenizer`,
+  `xml`, `xmlreader`, `zip`, `ctype`, `json`, `bcmath`, `fileinfo`, `intl` (recommended), plus either
+  `pdo_mysql` or `pdo_sqlite`.
+  `zip` and `xmlreader` are required by the spreadsheet reader used for Excel (.xlsx) imports.
 * MySQL 8 / MariaDB 10.6+ (SQLite is supported and used by the automated tests).
-* Composer 2.
+* Composer 2. `composer.lock` is committed, so `composer install` reproduces the exact dependency set.
 * Node.js 20+ and npm (to build the Tailwind/Vite assets).
 * A queue worker process and a scheduler cron entry (see below).
 * A Termii account with at least one approved sender ID (optional at first: campaigns can be prepared
   without it, but nothing can be sent until it is configured).
 * Write access for the web server user to the application root (for `.env`), `storage/` and
   `bootstrap/cache/`.
+
+---
+
+## PHP extensions
+
+The application needs a handful of standard PHP extensions. `zip` and `xmlreader` are the ones that are
+disabled by default on Windows builds, and `openspout` (the spreadsheet reader) refuses to install without
+them.
+
+### Windows / Laragon
+
+Laragon ships `php_zip.dll` and `php_xmlreader.dll`, but both can be commented out in `php.ini`.
+`php --ini` prints the file in use (for example
+`C:\laragon\bin\php\php-8.4.12-nts-Win32-vs17-x64\php.ini`).
+
+1. Open that `php.ini` in a text editor.
+2. Find `;extension=zip` and `;extension=xmlreader` and remove the leading `;` from both.
+3. Save the file and restart the terminal (and Laragon, if PHP runs under Apache/nginx).
+4. Verify:
+
+   ```powershell
+   php -m | findstr /i "zip xmlreader"
+   ```
+
+5. Run `composer install` again (the committed lock file is used).
+
+If you prefer not to edit `php.ini` by hand, Laragon's menu has **PHP → Extensions**, where the same
+extensions can be toggled.
+
+### Linux / macOS
+
+```bash
+# Debian / Ubuntu (APT picks the right package for your PHP version)
+sudo apt install php8.3-zip php8.3-xml php8.3-mbstring php8.3-intl
+sudo systemctl reload php8.3-fpm    # or restart Apache/nginx
+
+# RHEL / Fedora / Rocky
+sudo dnf install php-cli php-zip php-xml php-mbstring php-intl
+
+# macOS (Homebrew)
+brew install php        # zip and xmlreader are built in
+```
+
+### Shared hosting
+
+Enable **zip** and **xmlreader** in the hosting control panel (cPanel → *Select PHP Version* →
+*Extensions*). Without them the application still runs with CSV imports, but Excel (`.xlsx`) uploads are
+rejected with a clear message.
+
+### CSV-only hosts
+
+If the server has no `zip` extension and you only ever import CSV files, the install can proceed with:
+
+```bash
+composer install --ignore-platform-req=ext-zip
+```
+
+Excel uploads then fail with an actionable message instead of a fatal error, and the browser installer
+shows `zip` as a failing requirement so the state is not hidden.
 
 ---
 
@@ -134,6 +196,11 @@ composer install --no-dev --optimize-autoloader
 npm ci && npm run build        # or deploy public/build from CI
 php artisan storage:link
 ```
+
+`composer install` reads the committed `composer.lock`, which was resolved for PHP 8.2 so it installs
+unchanged on PHP 8.2, 8.3, 8.4 and 8.5. Composer verifies the platform first: if `ext-zip` or
+`ext-xmlreader` is missing it stops with a single clear message instead of the dependency conflict shown
+by older versions of this project.
 
 The application root, `storage/` and `bootstrap/cache/` must be writable by the web server user:
 
@@ -768,6 +835,7 @@ proxies so generated URLs and the webhook route use the correct scheme and host.
 | Balance shows "Not checked" | Run `php artisan termii:balance` or press "Check balance" in Settings |
 | 401/403 on the webhook | Signature mismatch: the secret must be identical here and in the Termii console; the endpoint returns 404 while disabled |
 | Assets unstyled | `npm run build` was not run or `public/build` was not deployed; the installer's first step reports the missing manifest |
+| `composer install` fails: `openspout/openspout … require ext-zip` or `your php version … does not satisfy` | The `zip` extension is disabled. Enable it (see below), then run `composer install` again. The committed lock file already resolves `openspout` to a version that supports PHP 8.4 |
 | Installer says `.env` or storage is not writable | Give the web server user write access to the application root, `storage/` and `bootstrap/cache/` (see the installation section) |
 | Installer step 2 cannot create the MySQL database | The database user lacks `CREATE`; create the database manually (for example in phpMyAdmin) and enter its name again, or grant the privilege |
 | `/install` redirects to the dashboard but the tables are missing | The installation marker exists: `rm storage/app/installation.json` and reload, or run `php artisan migrate --force` |
