@@ -2,15 +2,83 @@ name: CI
 
 on:
   push:
-  workflow_dispatch:
+    branches:
+      - main
+      - 'arena/**'
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  probe:
+  tests:
+    name: PHP 8.3 · tests
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, pdo_sqlite, sqlite3, gd, zip, intl, bcmath, xml, curl, fileinfo, tokenizer, openssl, dom, xmlwriter, xmlreader
-      - run: php -v && composer --version
+          extensions: mbstring, intl, pdo_mysql, pdo_sqlite, sqlite3, zip, xml, xmlreader, xmlwriter, simplexml, dom, curl, fileinfo, bcmath, gd, iconv
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('composer.json') }}
+          restore-keys: composer-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          sed -i 's/^DB_CONNECTION=mysql/DB_CONNECTION=sqlite/' .env
+          sed -i "s|^DB_DATABASE=yac_bulksms|DB_DATABASE=$(pwd)/database/database.sqlite|" .env
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Compile views
+        run: php artisan view:cache
+
+      - name: Check routes compile
+        run: php artisan route:cache
+
+      - name: Run the test suite
+        run: php artisan test
+
+      - name: Show logs on failure
+        if: failure()
+        run: tail -n 200 storage/logs/laravel.log || true
+
+  assets:
+    name: Node 20 · assets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
