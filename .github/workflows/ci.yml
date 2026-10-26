@@ -118,6 +118,66 @@ jobs:
             gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -f body="$(cat "$part")" > /dev/null || echo 'could not post a failure report part'
           done
 
+  installer:
+    name: Browser installer · end to end
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, pdo_mysql, pdo_sqlite, sqlite3, zip, xml, xmlreader, xmlwriter, simplexml, dom, curl, fileinfo, bcmath, gd, iconv
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('composer.json') }}
+          restore-keys: composer-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the frontend assets
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+          npm run build
+
+      - name: Start the application with no .env, no key and no database
+        run: |
+          set -e
+          test ! -f .env
+          nohup php artisan serve --host=127.0.0.1 --port=8080 > /tmp/server.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8080/install; then
+              echo "The development server is answering on http://127.0.0.1:8080"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "The development server did not start:"
+          cat /tmp/server.log
+          exit 1
+
+      - name: Walk through the installer
+        run: bash .github/scripts/install-smoke-test.sh
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          tail -n 60 /tmp/server.log || true
+          tail -n 120 storage/logs/laravel.log || true
+
   assets:
     name: Node 20 · assets
     runs-on: ubuntu-latest
