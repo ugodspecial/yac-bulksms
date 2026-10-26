@@ -20,6 +20,8 @@ class RequirementsChecker
         'pdo',
         'tokenizer',
         'xml',
+        'xmlreader',
+        'zip',
     ];
 
     private const RECOMMENDED_EXTENSIONS = [

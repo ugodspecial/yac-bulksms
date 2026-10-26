@@ -8,6 +8,7 @@ use Generator;
 use Illuminate\Support\Facades\Storage;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use Throwable;
+use ZipArchive;
 
 /**
  * Streams rows out of uploaded CSV/XLSX contact files.
@@ -101,11 +102,23 @@ class ContactImportParser
      */
     private function xlsxRows(string $path): Generator
     {
+        // An XLSX workbook is a ZIP archive. The extension is required by Composer,
+        // but hosts that installed with --ignore-platform-req=ext-zip get a clear
+        // message instead of a fatal "class not found".
+        if (! class_exists(ZipArchive::class) || ! class_exists(XlsxReader::class)) {
+            throw new ImportFileException(
+                'Spreadsheet imports need the PHP zip extension and the openspout package. '
+                .'Enable "extension=zip" in php.ini and run "composer install", or upload the contacts as CSV.'
+            );
+        }
+
         try {
             $reader = new XlsxReader();
             $reader->open($path);
         } catch (Throwable $e) {
-            throw new ImportFileException('The spreadsheet could not be opened: '.$e->getMessage());
+            throw new ImportFileException(
+                'The spreadsheet could not be opened. Check that the file is a valid .xlsx workbook: '.$e->getMessage()
+            );
         }
 
         try {
