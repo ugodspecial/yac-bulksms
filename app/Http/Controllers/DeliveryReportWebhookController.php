@@ -74,7 +74,14 @@ class DeliveryReportWebhookController extends Controller
         };
 
         $messageId = $this->scalar($payload['message_id'] ?? null) ?? $this->scalar($payload['id'] ?? null);
-        $phone = $this->digits($payload['receiver'] ?? $payload['to'] ?? null);
+
+        // For inbound messages the customer is the *sender*; for delivery
+        // reports the customer is the receiver.
+        $phoneSource = $type === 'inbound'
+            ? ($payload['sender'] ?? $payload['from'] ?? $payload['receiver'] ?? null)
+            : ($payload['receiver'] ?? $payload['to'] ?? null);
+
+        $phone = $this->digits($phoneSource);
         $status = $this->scalar($payload['status'] ?? null) ?? $this->scalar($payload['command'] ?? null);
         $body = $this->scalar($payload['message'] ?? null);
 

@@ -8,7 +8,6 @@ use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\ContactGroup;
 use App\Models\User;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
@@ -100,13 +99,15 @@ class AuthorizationTest extends TestCase
         $this->assertTrue(Gate::forUser($this->operator(permissions: [Permission::ManageContacts]))->allows('update', $group));
     }
 
-    public function test_the_settings_component_requires_an_administrator(): void
+    public function test_the_settings_screen_requires_an_administrator(): void
     {
-        $this->actingAs($this->operator());
+        $operator = $this->operator();
 
-        $this->expectException(AuthorizationException::class);
+        $this->assertFalse(Gate::forUser($operator)->allows('admin'));
 
-        Livewire::test(SettingsIndex::class);
+        $this->actingAs($operator)->get('/settings')->assertForbidden();
+
+        $this->actingAs($this->admin())->get('/settings')->assertOk();
     }
 
     public function test_an_operator_cannot_delete_their_own_account_through_the_user_policy(): void

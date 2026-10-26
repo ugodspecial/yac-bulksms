@@ -46,7 +46,11 @@ class FakeTermiiGateway implements TermiiGatewayInterface
 
     public function maskedApiKey(): ?string
     {
-        return $this->configured ? '••••••••test' : null;
+        if (! $this->configured) {
+            return null;
+        }
+
+        return '••••••••'.substr((string) config('termii.api_key'), -4);
     }
 
     public function sendSingle(

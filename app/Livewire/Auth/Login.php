@@ -53,7 +53,7 @@ class Login extends Component
         }
 
         RateLimiter::clear($key);
-        request()->session()->regenerate();
+        session()->regenerate();
 
         $user = Auth::user();
         $user->forceFill(['last_login_at' => now()])->save();

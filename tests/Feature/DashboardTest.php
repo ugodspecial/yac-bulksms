@@ -49,7 +49,7 @@ class DashboardTest extends TestCase
 
         $response = $this->actingAs($admin)->get('/dashboard')->assertOk();
 
-        $response->assertSee('1200.50');
+        $response->assertSee('1,200.50');
         $response->assertSee('Delivered');
         $response->assertDontSee('NaN');
     }

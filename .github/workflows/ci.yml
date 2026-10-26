@@ -74,7 +74,11 @@ jobs:
           if [ ! -s "$LOG" ]; then
             cp storage/logs/laravel.log "$LOG" 2>/dev/null || echo 'no output captured' > "$LOG"
           fi
-          head -c 200000 "$LOG" > /tmp/phpunit-trimmed.log
+          awk '{ print substr($0, 1, 500) }' "$LOG" \
+            | grep -v '^/home/runner' \
+            | grep -v '^#[0-9]' \
+            | grep -v '^/usr/' > /tmp/phpunit-trimmed.log || true
+          tail -n 40 storage/logs/laravel.log >> /tmp/phpunit-trimmed.log 2>/dev/null || true
           rm -f /tmp/phpunit-part-*
           split -b 55000 /tmp/phpunit-trimmed.log /tmp/phpunit-part- || true
           for part in /tmp/phpunit-part-*; do

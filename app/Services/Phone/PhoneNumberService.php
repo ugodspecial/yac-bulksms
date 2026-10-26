@@ -3,6 +3,7 @@
 namespace App\Services\Phone;
 
 use libphonenumber\NumberParseException;
+use libphonenumber\PhoneNumber;
 use libphonenumber\PhoneNumberFormat;
 use libphonenumber\PhoneNumberUtil;
 
@@ -67,7 +68,7 @@ class PhoneNumberService
 
     public function toInternationalDisplay(string $digits): string
     {
-        $parsed = $this->parse('+'.ltrim($digits, '+'), null);
+        $parsed = $this->parseNumber('+'.ltrim($digits, '+'), null);
 
         if ($parsed === null) {
             return $this->toE164($digits);
@@ -83,7 +84,7 @@ class PhoneNumberService
 
     public function regionFor(string $digits): ?string
     {
-        $parsed = $this->parse('+'.ltrim($digits, '+'), null);
+        $parsed = $this->parseNumber('+'.ltrim($digits, '+'), null);
 
         if ($parsed === null) {
             return null;
@@ -118,17 +119,24 @@ class PhoneNumberService
 
     private function parse(string $candidate, ?string $region): ?string
     {
+        $parsed = $this->parseNumber($candidate, $region);
+
+        if ($parsed === null) {
+            return null;
+        }
+
+        return ltrim($this->util()->format($parsed, PhoneNumberFormat::E164), '+');
+    }
+
+    private function parseNumber(string $candidate, ?string $region): ?PhoneNumber
+    {
         try {
             $parsed = $this->util()->parse($candidate, $region);
         } catch (NumberParseException) {
             return null;
         }
 
-        if (! $this->util()->isValidNumber($parsed)) {
-            return null;
-        }
-
-        return ltrim($this->util()->format($parsed, PhoneNumberFormat::E164), '+');
+        return $this->util()->isValidNumber($parsed) ? $parsed : null;
     }
 
     private function util(): PhoneNumberUtil

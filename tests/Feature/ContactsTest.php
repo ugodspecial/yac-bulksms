@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Permission;
 use App\Enums\SubscriptionStatus;
 use App\Livewire\Contacts\Index as ContactsIndex;
 use App\Models\Contact;
@@ -26,7 +27,7 @@ class ContactsTest extends TestCase
 
     public function test_a_contact_is_created_with_a_normalised_phone_number(): void
     {
-        $this->actingAs($this->operator());
+        $this->actingAs($this->operator([Permission::ManageContacts]));
 
         Livewire::test(ContactsIndex::class)
             ->call('openCreate')
@@ -45,7 +46,7 @@ class ContactsTest extends TestCase
 
     public function test_duplicate_phone_numbers_are_rejected(): void
     {
-        $this->actingAs($this->operator());
+        $this->actingAs($this->operator([Permission::ManageContacts]));
 
         Contact::factory()->create(['phone' => '2348031234567']);
 
@@ -60,7 +61,7 @@ class ContactsTest extends TestCase
 
     public function test_invalid_phone_numbers_are_rejected(): void
     {
-        $this->actingAs($this->operator());
+        $this->actingAs($this->operator([Permission::ManageContacts]));
 
         Livewire::test(ContactsIndex::class)
             ->call('openCreate')
@@ -73,7 +74,7 @@ class ContactsTest extends TestCase
 
     public function test_unsubscribing_a_contact_adds_it_to_the_suppression_list(): void
     {
-        $this->actingAs($this->operator());
+        $this->actingAs($this->operator([Permission::ManageContacts]));
 
         $contact = Contact::factory()->create(['phone' => '2348031234567']);
 
@@ -93,7 +94,7 @@ class ContactsTest extends TestCase
 
     public function test_creating_a_contact_for_a_suppressed_number_keeps_it_unsubscribed(): void
     {
-        $this->actingAs($this->operator());
+        $this->actingAs($this->operator([Permission::ManageContacts]));
 
         SuppressionEntry::factory()->create(['phone' => '2348031234567']);
 
@@ -114,14 +115,11 @@ class ContactsTest extends TestCase
         $contact = Contact::factory()->unsubscribed()->create(['phone' => '2348031234567']);
         SuppressionEntry::factory()->create(['phone' => '2348031234567']);
 
-        $this->actingAs($this->operator());
+        $this->actingAs($this->operator([Permission::ManageContacts]));
 
-        try {
-            Livewire::test(ContactsIndex::class)->call('resubscribe', $contact->id);
-            $this->fail('Operators must not be able to re-subscribe contacts.');
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
-            // expected
-        }
+        Livewire::test(ContactsIndex::class)
+            ->call('resubscribe', $contact->id)
+            ->assertStatus(403);
 
         $this->assertSame(SubscriptionStatus::Unsubscribed, $contact->fresh()->subscription_status);
 

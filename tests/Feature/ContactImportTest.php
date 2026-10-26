@@ -71,12 +71,18 @@ class ContactImportTest extends TestCase
 
     public function test_committing_an_import_creates_only_the_valid_contacts(): void
     {
+        Contact::factory()->create(['phone' => '2348089876543']);
+        SuppressionEntry::factory()->create(['phone' => '2348021234567']);
+
         $import = $this->importWithCsv();
 
         app(ContactImportProcessor::class)->validate($import);
 
         $import->refresh();
-        $this->assertSame(0, Contact::query()->count());
+        $this->assertSame(1, $import->valid_rows);
+        $this->assertSame(3, $import->invalid_rows);
+        $this->assertSame(2, $import->duplicate_rows);
+        $this->assertSame(1, Contact::query()->count());
 
         $admin = $this->admin();
         $inserted = app(ContactImportProcessor::class)->commit($import, $admin);

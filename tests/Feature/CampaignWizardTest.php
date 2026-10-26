@@ -111,19 +111,18 @@ class CampaignWizardTest extends TestCase
             ->assertSet('step', 3)
             ->set('confirmed', true);
 
-        try {
-            $component->call('confirmSend');
-            $this->fail('An operator without the send permission must not be able to confirm a campaign.');
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
-            // expected: the policy blocks confirmation
-        }
+        // The policy rejects confirmation with 403 for operators without the
+        // send permission; nothing is queued and the draft stays a draft.
+        $component->call('confirmSend')->assertStatus(403);
 
         $campaign = Campaign::query()->firstOrFail();
 
         $this->assertSame(CampaignStatus::Draft, $campaign->status);
         $this->assertSame(0, $campaign->recipients()->count());
 
-        $component->call('submitForReview')->assertHasNoErrors();
+        Livewire::test(Wizard::class, ['campaign' => $campaign])
+            ->call('submitForReview')
+            ->assertHasNoErrors();
 
         $this->assertSame(CampaignStatus::NeedsReview, $campaign->fresh()->status);
     }
