@@ -91,7 +91,8 @@ jobs:
               php -l "$f" > /dev/null 2>&1 || {
                 echo "INVALID COMPILED VIEW: $f"
                 php -l "$f" || true
-                sed -n '1,60p' "$f"
+                echo "--- lines 420-500 ---"
+                sed -n '420,500p' "$f"
               }
             done
           } >> /tmp/phpunit-trimmed.log 2>&1 || true
