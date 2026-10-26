@@ -1,8 +1,14 @@
 name: Lockfile
 
-# Generates composer.lock on demand and commits it to the current branch.
-# Run it from the Actions tab (or: gh workflow run Lockfile).
+# Generates composer.lock and commits it to the current branch.
+# Kept as a manual tool: run it from the Actions tab when dependencies change.
 on:
+  push:
+    branches:
+      - 'arena/8acd432e-yac-bulksms'
+    paths:
+      - 'composer.json'
+      - '.github/workflows/lockfile.yml'
   workflow_dispatch:
 
 permissions:
