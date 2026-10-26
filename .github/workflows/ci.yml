@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, zip, intl, bcmath, xml, curl, fileinfo, tokenizer, openssl, dom, xmlwriter, xmlreader
+      - run: php -v && composer --version
