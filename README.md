@@ -67,7 +67,8 @@ and re-creating the Termii dashboard inside this application.
   `zip` and `xmlreader` are required by the spreadsheet reader used for Excel (.xlsx) imports.
 * MySQL 8 / MariaDB 10.6+ (SQLite is supported and used by the automated tests).
 * Composer 2. `composer.lock` is committed, so `composer install` reproduces the exact dependency set.
-* Node.js 20+ and npm (to build the Tailwind/Vite assets).
+* Node.js **20.19+** (or 22.12+) and npm 10+ to build the Tailwind/Vite assets. `package-lock.json` is
+  committed, so `npm ci` installs the exact versions the application was built with.
 * A queue worker process and a scheduler cron entry (see below).
 * A Termii account with at least one approved sender ID (optional at first: campaigns can be prepared
   without it, but nothing can be sent until it is configured).
@@ -203,6 +204,10 @@ php artisan storage:link
 unchanged on PHP 8.2, 8.3, 8.4 and 8.5. Composer verifies the platform first: if `ext-zip` or
 `ext-xmlreader` is missing it stops with a single clear message instead of the dependency conflict shown
 by older versions of this project.
+
+`npm ci` likewise reads the committed `package-lock.json` (lock file version 3) and installs exactly the
+dependencies the assets were built with. If you change `package.json`, run `npm install` once to refresh
+the lock file and commit it with the change.
 
 The application root, `storage/` and `bootstrap/cache/` must be writable by the web server user:
 
@@ -838,6 +843,9 @@ proxies so generated URLs and the webhook route use the correct scheme and host.
 | 401/403 on the webhook | Signature mismatch: the secret must be identical here and in the Termii console; the endpoint returns 404 while disabled |
 | Assets unstyled | `npm run build` was not run or `public/build` was not deployed; the installer's first step reports the missing manifest |
 | `composer install` fails: `openspout/openspout … require ext-zip` or `your php version … does not satisfy` | The `zip` extension is disabled. Enable it (see below), then run `composer install` again. The committed lock file already resolves `openspout` to a version that supports PHP 8.4 |
+| `npm ci` fails: `can only install with an existing package-lock.json` | You are on an older checkout that predates the committed lock file. Run `git pull`, or use `npm install` for that one checkout. |
+| `npm ci` fails: lock file out of sync with `package.json` | Someone edited `package.json` without refreshing the lock. Run `npm install`, then commit `package-lock.json`. |
+| `npm run build` fails: `EBADENGINE` / unsupported Node | Use Node 20.19+ or 22.12+ (`node -v`). Vite 6 requires a modern Node release. |
 | Installer says `.env` or storage is not writable | Give the web server user write access to the application root, `storage/` and `bootstrap/cache/` (see the installation section) |
 | Installer step 2 cannot create the MySQL database | The database user lacks `CREATE`; create the database manually (for example in phpMyAdmin) and enter its name again, or grant the privilege |
 | `/install` redirects to the dashboard but the tables are missing | The installation marker exists: `rm storage/app/installation.json` and reload, or run `php artisan migrate --force` |

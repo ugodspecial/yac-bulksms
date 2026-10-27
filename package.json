@@ -1,9 +1,15 @@
 {
+    "name": "yac-bulksms",
+    "version": "1.0.0",
     "private": true,
     "type": "module",
+    "description": "Frontend build for the YAC-BulkSMS Laravel + Livewire application.",
     "scripts": {
         "dev": "vite",
         "build": "vite build"
+    },
+    "engines": {
+        "node": "^20.19.0 || >=22.12.0"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.10",

@@ -147,10 +147,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
 
       - name: Build the frontend assets
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+          npm ci --no-audit --no-fund
           npm run build
 
       - name: Start the application with no .env, no key and no database
@@ -190,10 +191,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
 
       - name: Install npm dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+        run: npm ci --no-audit --no-fund
 
       - name: Build assets
         run: npm run build
