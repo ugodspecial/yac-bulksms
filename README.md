@@ -67,8 +67,9 @@ and re-creating the Termii dashboard inside this application.
   `zip` and `xmlreader` are required by the spreadsheet reader used for Excel (.xlsx) imports.
 * MySQL 8 / MariaDB 10.6+ (SQLite is supported and used by the automated tests).
 * Composer 2. `composer.lock` is committed, so `composer install` reproduces the exact dependency set.
-* Node.js **20.19+** (or 22.12+) and npm 10+ to build the Tailwind/Vite assets. `package-lock.json` is
-  committed, so `npm ci` installs the exact versions the application was built with.
+* Node.js **20 LTS or newer** and npm 10+ to build the Tailwind/Vite assets (`package.json` also accepts
+  Node 18, which is end-of-life). `package-lock.json` is committed, so `npm ci` installs exactly the
+  versions the assets were built with.
 * A queue worker process and a scheduler cron entry (see below).
 * A Termii account with at least one approved sender ID (optional at first: campaigns can be prepared
   without it, but nothing can be sent until it is configured).
@@ -845,7 +846,7 @@ proxies so generated URLs and the webhook route use the correct scheme and host.
 | `composer install` fails: `openspout/openspout … require ext-zip` or `your php version … does not satisfy` | The `zip` extension is disabled. Enable it (see below), then run `composer install` again. The committed lock file already resolves `openspout` to a version that supports PHP 8.4 |
 | `npm ci` fails: `can only install with an existing package-lock.json` | You are on an older checkout that predates the committed lock file. Run `git pull`, or use `npm install` for that one checkout. |
 | `npm ci` fails: lock file out of sync with `package.json` | Someone edited `package.json` without refreshing the lock. Run `npm install`, then commit `package-lock.json`. |
-| `npm run build` fails: `EBADENGINE` / unsupported Node | Use Node 20.19+ or 22.12+ (`node -v`). Vite 6 requires a modern Node release. |
+| `npm run build` fails: `EBADENGINE` / unsupported Node | Check `node -v`: Vite 6 needs Node 18, 20 or 22+. Node 20 LTS or newer is recommended. |
 | Installer says `.env` or storage is not writable | Give the web server user write access to the application root, `storage/` and `bootstrap/cache/` (see the installation section) |
 | Installer step 2 cannot create the MySQL database | The database user lacks `CREATE`; create the database manually (for example in phpMyAdmin) and enter its name again, or grant the privilege |
 | `/install` redirects to the dashboard but the tables are missing | The installation marker exists: `rm storage/app/installation.json` and reload, or run `php artisan migrate --force` |
